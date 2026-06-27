@@ -90,6 +90,7 @@ class _MonkeyHeroAreaState extends State<MonkeyHeroArea> with TickerProviderStat
     final localOffset = event.localPosition;
     final rand = Random();
     
+    if (_localParticles.length >= 20) return;
     setState(() {
       // 1. Spawning decorative banana particles
       for (int i = 0; i < 3; i++) {

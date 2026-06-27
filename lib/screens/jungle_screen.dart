@@ -21,10 +21,11 @@ class JungleScreen extends StatelessWidget {
     final double neededXp = 100.0 * pow(1.5, stats.level - 1);
     final double xpProgress = (stats.xp / neededXp).clamp(0.0, 1.0);
 
-    return Stack(
-      children: [
-        // 1. Scrollable Content
-        ListView(
+    return LayoutBuilder(
+      builder: (context, constraints) => Stack(
+        children: [
+          // 1. Scrollable Content
+          ListView(
           padding: const EdgeInsets.only(bottom: 110.0),
           children: [
             // Level and XP progression Sign
@@ -119,9 +120,11 @@ class JungleScreen extends StatelessWidget {
         ),
 
         // 3. Banana Rain Event Overlay (falling bananas)
-        ...controller.fallingBananas.map((banana) {
+        ...controller.fallingBananas
+            .where((b) => b.y < constraints.maxHeight + 50)
+            .map((banana) {
           return Positioned(
-            left: MediaQuery.of(context).size.width * banana.x,
+            left: constraints.maxWidth * banana.x,
             top: banana.y,
             child: GestureDetector(
               onTapDown: (_) {
@@ -144,6 +147,6 @@ class JungleScreen extends StatelessWidget {
           );
         }).toList(),
       ],
-    );
+    ));
   }
 }

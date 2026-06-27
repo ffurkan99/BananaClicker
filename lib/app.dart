@@ -46,7 +46,27 @@ class _BananaClickerAppState extends State<BananaClickerApp> {
   bool _showSettings = false;
   bool _showPrestige = false;
   bool _showSkillTree = false;
+  bool _assetsCached = false;
   final TextEditingController _cheatBalanceController = TextEditingController();
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_assetsCached) {
+      _assetsCached = true;
+      for (final img in const [
+        'assets/images/icons/banana.png',
+        'assets/images/icons/banana_boost.png',
+        'assets/images/icons/golden_banana.png',
+        'assets/images/icons/monkey_helper.png',
+        'assets/images/icons/palm.png',
+        'assets/images/icons/trophy.png',
+        'assets/images/icons/coin.png',
+      ]) {
+        precacheImage(AssetImage(img), context);
+      }
+    }
+  }
 
   @override
   void dispose() {
@@ -264,6 +284,9 @@ class _BananaClickerAppState extends State<BananaClickerApp> {
           child: Padding(
             padding: const EdgeInsets.all(24.0),
             child: Container(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(context).size.height * 0.85,
+              ),
               decoration: BoxDecoration(
                 color: PixelColors.creamWhite,
                 borderRadius: BorderRadius.circular(16),
@@ -276,8 +299,9 @@ class _BananaClickerAppState extends State<BananaClickerApp> {
                   )
                 ],
               ),
-              padding: const EdgeInsets.all(20.0),
-              child: Column(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(20.0),
+                child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   // Title Banner
@@ -468,6 +492,7 @@ class _BananaClickerAppState extends State<BananaClickerApp> {
           ),
         ),
       ),
+    ),
     );
   }
 

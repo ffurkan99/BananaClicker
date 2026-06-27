@@ -32,6 +32,16 @@ class SaveService {
   static const String _keyUnlockedSkills = 'unlocked_skills';
   static const String _keyOfflineMultiplier = 'offline_earnings_multiplier';
 
+  static const String _keyDailyClicks = 'daily_quest_clicks';
+  static const String _keyDailyBananas = 'daily_quest_bananas';
+  static const String _keyDailyGolden = 'daily_quest_golden';
+  static const String _keyDailyMaxCombo = 'daily_quest_max_combo';
+  static const String _keyDailyUpgrades = 'daily_quest_upgrades';
+  static const String _keyWeeklyClicks = 'weekly_quest_clicks';
+  static const String _keyWeeklyBananas = 'weekly_quest_bananas';
+  static const String _keyWeeklyGolden = 'weekly_quest_golden';
+  static const String _keyWeeklyCrits = 'weekly_quest_crits';
+
   static const String _keyJungleRelics = 'jungle_relics';
   static const String _keyMetaIncome = 'meta_income_level';
   static const String _keyMetaClick = 'meta_click_level';
@@ -91,6 +101,15 @@ class SaveService {
       questGoldenBananasCollected: prefs.getInt(_keyQuestGolden) ?? 0,
       questMaxComboReached: prefs.getInt(_keyQuestMaxCombo) ?? 1,
       questCritsTriggered: prefs.getInt(_keyQuestCrits) ?? 0,
+      dailyClicks: prefs.getInt(_keyDailyClicks) ?? 0,
+      dailyBananas: prefs.getDouble(_keyDailyBananas) ?? 0.0,
+      dailyGolden: prefs.getInt(_keyDailyGolden) ?? 0,
+      dailyMaxCombo: prefs.getInt(_keyDailyMaxCombo) ?? 0,
+      dailyUpgrades: prefs.getInt(_keyDailyUpgrades) ?? 0,
+      weeklyClicks: prefs.getInt(_keyWeeklyClicks) ?? 0,
+      weeklyBananas: prefs.getDouble(_keyWeeklyBananas) ?? 0.0,
+      weeklyGolden: prefs.getInt(_keyWeeklyGolden) ?? 0,
+      weeklyCrits: prefs.getInt(_keyWeeklyCrits) ?? 0,
       claimedQuests: (prefs.getStringList(_keyClaimedQuests) ?? []).toSet(),
       unlockedAchievements: (prefs.getStringList(_keyUnlockedAchievements) ?? []).toSet(),
       
@@ -132,6 +151,15 @@ class SaveService {
     await prefs.setInt(_keyQuestGolden, stats.questGoldenBananasCollected);
     await prefs.setInt(_keyQuestMaxCombo, stats.questMaxComboReached);
     await prefs.setInt(_keyQuestCrits, stats.questCritsTriggered);
+    await prefs.setInt(_keyDailyClicks, stats.dailyClicks);
+    await prefs.setDouble(_keyDailyBananas, stats.dailyBananas);
+    await prefs.setInt(_keyDailyGolden, stats.dailyGolden);
+    await prefs.setInt(_keyDailyMaxCombo, stats.dailyMaxCombo);
+    await prefs.setInt(_keyDailyUpgrades, stats.dailyUpgrades);
+    await prefs.setInt(_keyWeeklyClicks, stats.weeklyClicks);
+    await prefs.setDouble(_keyWeeklyBananas, stats.weeklyBananas);
+    await prefs.setInt(_keyWeeklyGolden, stats.weeklyGolden);
+    await prefs.setInt(_keyWeeklyCrits, stats.weeklyCrits);
     await prefs.setStringList(_keyClaimedQuests, stats.claimedQuests.toList());
     await prefs.setStringList(_keyUnlockedAchievements, stats.unlockedAchievements.toList());
     

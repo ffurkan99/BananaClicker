@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/player_stats.dart';
@@ -1376,8 +1377,13 @@ class GameController extends ChangeNotifier {
           _comboProgress = 0.0;
           notifyListeners();
         } else {
-          _comboProgress = (totalComboDuration - elapsed) / totalComboDuration;
-          notifyListeners();
+          final newProgress = (totalComboDuration - elapsed) / totalComboDuration;
+          if ((_comboProgress - newProgress).abs() > 0.02) {
+            _comboProgress = newProgress;
+            notifyListeners();
+          } else {
+            _comboProgress = newProgress;
+          }
         }
       }
     });
@@ -1442,6 +1448,7 @@ class GameController extends ChangeNotifier {
 
     if (leveledUp) {
       _audioService.playLevelUp();
+      HapticFeedback.heavyImpact();
       _levelUpNotification = 'LEVEL UP! MONKEY LEVEL $currentLevel';
       notifyListeners();
       
@@ -2253,7 +2260,23 @@ class GameController extends ChangeNotifier {
   }
 
   // ---------- Quest Progress Checks ----------
-  double _getQuestProgressValue(String type) {
+  double _getQuestProgressValue(String type, String layer) {
+    if (layer == 'daily') {
+      switch (type) {
+        case 'clicks': return _stats.dailyClicks.toDouble();
+        case 'bananas': return _stats.dailyBananas;
+        case 'golden': return _stats.dailyGolden.toDouble();
+        case 'combo': return _stats.dailyMaxCombo.toDouble();
+        case 'upgrades': return _stats.dailyUpgrades.toDouble();
+      }
+    } else if (layer == 'weekly') {
+      switch (type) {
+        case 'clicks': return _stats.weeklyClicks.toDouble();
+        case 'bananas': return _stats.weeklyBananas;
+        case 'golden': return _stats.weeklyGolden.toDouble();
+        case 'crits': return _stats.weeklyCrits.toDouble();
+      }
+    }
     switch (type) {
       case 'clicks':
         return _stats.questClicks.toDouble();
@@ -2282,7 +2305,7 @@ class GameController extends ChangeNotifier {
 
   void _checkQuests() {
     _quests = _quests.map((quest) {
-      final double currentVal = _getQuestProgressValue(quest.type);
+      final double currentVal = _getQuestProgressValue(quest.type, quest.layer);
       final completed = currentVal >= quest.targetValue;
       return quest.copyWith(completed: completed, progress: currentVal);
     }).toList();
@@ -2290,8 +2313,6 @@ class GameController extends ChangeNotifier {
 
   // ---------- Achievements Unlock Checks ----------
   void _checkAchievements() {
-    final prefsFuture = SharedPreferences.getInstance();
-
     bool updated = false;
 
     final Map<String, bool> conditions = {
@@ -2333,13 +2354,8 @@ class GameController extends ChangeNotifier {
         updated = true;
         final now = DateTime.now().millisecondsSinceEpoch;
         
-        // Save state async
-        prefsFuture.then((prefs) {
-          prefs.setBool('ach_unlocked_${ach.id}', true);
-          prefs.setInt('ach_unlocked_at_${ach.id}', now);
-        });
-
         // Trigger notification sound / banner
+        HapticFeedback.mediumImpact();
         _audioService.playQuestComplete();
         _achievementUnlockNotification = 'ACHIEVEMENT UNLOCKED: ${ach.title}';
         

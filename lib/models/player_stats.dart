@@ -35,6 +35,17 @@ class PlayerStats {
   // Skill Tree
   final List<String> unlockedSkills;
 
+  // Period-specific counters for daily/weekly quest progress (reset each period)
+  final int dailyClicks;
+  final double dailyBananas;
+  final int dailyGolden;
+  final int dailyMaxCombo;
+  final int dailyUpgrades;
+  final int weeklyClicks;
+  final double weeklyBananas;
+  final int weeklyGolden;
+  final int weeklyCrits;
+
   // Meta Progression (Jungle Relics & Meta Upgrades)
   final int jungleRelics;
   final int metaIncomeLevel;
@@ -82,6 +93,15 @@ class PlayerStats {
     this.prestigeLevel = 0,
     this.goldenSeeds = 0,
     this.unlockedSkills = const [],
+    this.dailyClicks = 0,
+    this.dailyBananas = 0.0,
+    this.dailyGolden = 0,
+    this.dailyMaxCombo = 0,
+    this.dailyUpgrades = 0,
+    this.weeklyClicks = 0,
+    this.weeklyBananas = 0.0,
+    this.weeklyGolden = 0,
+    this.weeklyCrits = 0,
     this.jungleRelics = 0,
     this.metaIncomeLevel = 0,
     this.metaClickLevel = 0,
@@ -112,6 +132,15 @@ class PlayerStats {
     int? prestigeLevel,
     int? goldenSeeds,
     List<String>? unlockedSkills,
+    int? dailyClicks,
+    double? dailyBananas,
+    int? dailyGolden,
+    int? dailyMaxCombo,
+    int? dailyUpgrades,
+    int? weeklyClicks,
+    double? weeklyBananas,
+    int? weeklyGolden,
+    int? weeklyCrits,
     int? jungleRelics,
     int? metaIncomeLevel,
     int? metaClickLevel,
@@ -141,6 +170,15 @@ class PlayerStats {
       prestigeLevel: prestigeLevel ?? this.prestigeLevel,
       goldenSeeds: goldenSeeds ?? this.goldenSeeds,
       unlockedSkills: unlockedSkills ?? this.unlockedSkills,
+      dailyClicks: dailyClicks ?? this.dailyClicks,
+      dailyBananas: dailyBananas ?? this.dailyBananas,
+      dailyGolden: dailyGolden ?? this.dailyGolden,
+      dailyMaxCombo: dailyMaxCombo ?? this.dailyMaxCombo,
+      dailyUpgrades: dailyUpgrades ?? this.dailyUpgrades,
+      weeklyClicks: weeklyClicks ?? this.weeklyClicks,
+      weeklyBananas: weeklyBananas ?? this.weeklyBananas,
+      weeklyGolden: weeklyGolden ?? this.weeklyGolden,
+      weeklyCrits: weeklyCrits ?? this.weeklyCrits,
       jungleRelics: jungleRelics ?? this.jungleRelics,
       metaIncomeLevel: metaIncomeLevel ?? this.metaIncomeLevel,
       metaClickLevel: metaClickLevel ?? this.metaClickLevel,
