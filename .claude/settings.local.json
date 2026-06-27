@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:github.com)",
+      "Read(//c/headroom/**)",
+      "Bash(pip install *)",
+      "Bash(headroom wrap *)"
+    ]
+  }
+}

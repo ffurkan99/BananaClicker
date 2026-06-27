@@ -1,0 +1,7 @@
+{
+  "dependencies": {
+    "install": "^0.13.0",
+    "ios-webkit-debug-proxy": "^0.0.3",
+    "scoop": "^0.0.2"
+  }
+}
