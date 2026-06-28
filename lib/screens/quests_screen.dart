@@ -28,18 +28,20 @@ class _QuestsScreenState extends State<QuestsScreen> {
         ? controller.quests
         : controller.quests.where((q) => q.layer == _selectedLayer).toList();
 
-    // Group and flatten achievements
-    final Map<String, List<Achievement>> grouped = {};
-    for (var ach in controller.achievements) {
-      grouped.putIfAbsent(ach.category, () => []).add(ach);
-    }
+    // Group and flatten achievements (only when achievements tab is visible)
     final List<dynamic> flatAchievements = [];
-    final categoriesOrdered = ['economy', 'tapping', 'combo', 'critical', 'golden', 'map', 'collection', 'rebirth'];
-    for (var cat in categoriesOrdered) {
-      final list = grouped[cat];
-      if (list != null && list.isNotEmpty) {
-        flatAchievements.add(cat);
-        flatAchievements.addAll(list);
+    if (_showAchievements) {
+      final Map<String, List<Achievement>> grouped = {};
+      for (var ach in controller.achievements) {
+        grouped.putIfAbsent(ach.category, () => []).add(ach);
+      }
+      final categoriesOrdered = ['economy', 'tapping', 'combo', 'critical', 'golden', 'map', 'collection', 'rebirth'];
+      for (var cat in categoriesOrdered) {
+        final list = grouped[cat];
+        if (list != null && list.isNotEmpty) {
+          flatAchievements.add(cat);
+          flatAchievements.addAll(list);
+        }
       }
     }
 
@@ -138,6 +140,7 @@ class _QuestsScreenState extends State<QuestsScreen> {
                       ),
                     )
                   : ListView.builder(
+                      physics: const BouncingScrollPhysics(),
                       itemCount: filteredQuests.length,
                       padding: const EdgeInsets.only(bottom: 110.0),
                       itemBuilder: (context, index) {
@@ -149,6 +152,7 @@ class _QuestsScreenState extends State<QuestsScreen> {
                       },
                     ))
               : ListView.builder(
+                  physics: const BouncingScrollPhysics(),
                   itemCount: flatAchievements.length,
                   padding: const EdgeInsets.only(bottom: 110.0),
                   itemBuilder: (context, index) {

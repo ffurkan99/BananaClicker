@@ -85,8 +85,8 @@ class QuestCard extends StatelessWidget {
                   const SizedBox(height: 5),
                   Text(
                     quest.description,
-                    style: PixelTheme.bodyStyle(
-                      fontSize: 12,
+                    style: PixelTheme.pixelStyle(
+                      fontSize: 7,
                       color: PixelColors.mediumBrown,
                     ),
                   ),

@@ -45,10 +45,24 @@ class TapResult {
   });
 }
 
+class GoldenBananaResult {
+  final String text;
+  final bool startsBananaRain;
+
+  GoldenBananaResult({
+    required this.text,
+    this.startsBananaRain = false,
+  });
+}
+
+
 class GameController extends ChangeNotifier {
   final SaveService _saveService = SaveService();
   final OfflineEarningsService _offlineService = OfflineEarningsService();
   final AudioService _audioService = AudioService();
+
+  final Random _rng = Random();
+  int _lastQuestCheckTimestamp = 0;
 
   // ---------- Game State ----------
   PlayerStats _stats = PlayerStats();
@@ -70,7 +84,10 @@ class GameController extends ChangeNotifier {
   List<MapTheme> get maps => _maps;
 
   String get selectedMapId => _stats.equippedMap;
-  MapTheme get selectedMapTheme => _maps.firstWhere((m) => m.id == _stats.equippedMap, orElse: () => _maps.first);
+  MapTheme get selectedMapTheme => _maps.firstWhere(
+    (m) => m.id == _stats.equippedMap,
+    orElse: () => _maps.first,
+  );
 
   void selectMap(String mapId) {
     equipMap(mapId);
@@ -87,19 +104,13 @@ class GameController extends ChangeNotifier {
   List<SkillNode> _skills = [];
   List<SkillNode> get skills => _skills;
 
-  // Floating Effects (Tap values)
-  List<FloatingEffect> _floatingEffects = [];
-  List<FloatingEffect> get floatingEffects => _floatingEffects;
-  int _nextEffectId = 0;
+  // Floating Effects (Tap values) - Deprecated, now handled locally in UI
+  List<FloatingEffect> get floatingEffects => const [];
 
-  // Falling Bananas (Mini-event)
-  List<FallingBanana> _fallingBananas = [];
-  List<FallingBanana> get fallingBananas => _fallingBananas;
+  // Falling Bananas (Mini-event) - Deprecated, now handled locally in UI
+  List<FallingBanana> get fallingBananas => const [];
   bool _isBananaRainActive = false;
   bool get isBananaRainActive => _isBananaRainActive;
-  int _fallingBananaIdCounter = 0;
-  Timer? _bananaRainSpawnTimer;
-  Timer? _bananaRainUpdateTimer;
 
   // Combo Systems
   int _comboCount = 1;
@@ -123,23 +134,30 @@ class GameController extends ChangeNotifier {
   int _goldenTapExpiresAt = 0;
   int _goldenIdleExpiresAt = 0;
 
-  bool get isGoldenTapActive => _goldenTapExpiresAt > DateTime.now().millisecondsSinceEpoch;
-  bool get isGoldenIdleActive => _goldenIdleExpiresAt > DateTime.now().millisecondsSinceEpoch;
+  bool get isGoldenTapActive =>
+      _goldenTapExpiresAt > DateTime.now().millisecondsSinceEpoch;
+  bool get isGoldenIdleActive =>
+      _goldenIdleExpiresAt > DateTime.now().millisecondsSinceEpoch;
 
-  String get activeSkinIdForCurrentMap => _stats.equippedMapSkins[_stats.equippedMap] ?? '${_stats.equippedMap}_default';
+  String get activeSkinIdForCurrentMap =>
+      _stats.equippedMapSkins[_stats.equippedMap] ??
+      '${_stats.equippedMap}_default';
 
   String getEquippedSkinPathForMap(String mapId) {
     final skinId = _stats.equippedMapSkins[mapId] ?? '${mapId}_default';
-    final skin = _skins.firstWhere((s) => s.id == skinId, orElse: () {
-      return Skin(
-        id: '${mapId}_default',
-        name: 'Default',
-        cost: 0.0,
-        imagePath: 'assets/images/monkeys/monkeydefault/${mapId}_monkey.png',
-        bonusDescription: 'Default Monkey',
-        mapId: mapId,
-      );
-    });
+    final skin = _skins.firstWhere(
+      (s) => s.id == skinId,
+      orElse: () {
+        return Skin(
+          id: '${mapId}_default',
+          name: 'Default',
+          cost: 0.0,
+          imagePath: 'assets/images/monkeys/monkeydefault/${mapId}_monkey.png',
+          bonusDescription: 'Default Monkey',
+          mapId: mapId,
+        );
+      },
+    );
     return skin.imagePath;
   }
 
@@ -320,18 +338,23 @@ class GameController extends ChangeNotifier {
     if (_stats.jungleRelics < cost) return false;
 
     _audioService.playUpgrade();
-    
+
     int newIncome = _stats.metaIncomeLevel;
     int newClick = _stats.metaClickLevel;
     int newIdle = _stats.metaIdleLevel;
     int newGolden = _stats.metaGoldenLevel;
     int newCombo = _stats.metaComboLevel;
 
-    if (id == 'income') newIncome++;
-    else if (id == 'click') newClick++;
-    else if (id == 'idle') newIdle++;
-    else if (id == 'golden') newGolden++;
-    else if (id == 'combo') newCombo++;
+    if (id == 'income')
+      newIncome++;
+    else if (id == 'click')
+      newClick++;
+    else if (id == 'idle')
+      newIdle++;
+    else if (id == 'golden')
+      newGolden++;
+    else if (id == 'combo')
+      newCombo++;
 
     _stats = _stats.copyWith(
       jungleRelics: _stats.jungleRelics - cost,
@@ -355,14 +378,17 @@ class GameController extends ChangeNotifier {
   bool travelToNextMap() {
     final nextIndex = currentMapProgression.worldIndex + 1;
     if (nextIndex > mapProgressions.length) return false;
-    
+
     if (_stats.totalBananas < currentMapProgression.unlockTarget) return false;
-    
+
     _audioService.playLevelUp();
 
-    final nextMap = mapProgressions.firstWhere((m) => m.worldIndex == nextIndex);
+    final nextMap = mapProgressions.firstWhere(
+      (m) => m.worldIndex == nextIndex,
+    );
     final relicsEarned = currentMapProgression.relicsReward;
-    final newUnlockedMaps = Set<String>.from(_stats.unlockedMaps)..add(nextMap.id);
+    final newUnlockedMaps = Set<String>.from(_stats.unlockedMaps)
+      ..add(nextMap.id);
 
     _stats = PlayerStats(
       totalBananas: 0.0,
@@ -1086,57 +1112,272 @@ class GameController extends ChangeNotifier {
   ];
 
   final List<Achievement> _baseAchievements = [
-    Achievement(id: 'first_banana', title: 'First Banana', description: 'Earn your first banana', category: 'economy'),
-    Achievement(id: 'banana_beginner', title: 'Banana Beginner', description: 'Earn 1,000 bananas in total', category: 'economy'),
-    Achievement(id: 'banana_collector', title: 'Banana Collector', description: 'Earn 10,000 bananas in total', category: 'economy'),
-    Achievement(id: 'banana_millionaire', title: 'Banana Millionaire', description: 'Earn 1,000,000 bananas in total', category: 'economy'),
-    Achievement(id: 'banana_billionaire', title: 'Banana Billionaire', description: 'Earn 1,000,000,000 bananas in total', category: 'economy'),
-    Achievement(id: 'banana_tycoon', title: 'Banana Tycoon', description: 'Earn 10,000,000,000 bananas in total', category: 'economy'),
-    Achievement(id: 'first_click', title: 'Hello Monkey', description: 'Tap the monkey for the first time', category: 'tapping'),
-    Achievement(id: 'monkey_friend', title: 'Monkey Friend', description: 'Tap the monkey 500 times', category: 'tapping'),
-    Achievement(id: 'monkey_lover', title: 'Monkey Lover', description: 'Tap the monkey 2,000 times', category: 'tapping'),
-    Achievement(id: 'monkey_devotee', title: 'Monkey Devotee', description: 'Tap the monkey 10,000 times', category: 'tapping'),
-    Achievement(id: 'combo_beginner', title: 'Getting Groove', description: 'Reach a combo of x10', category: 'combo'),
-    Achievement(id: 'combo_master', title: 'Combo Master', description: 'Reach a combo of x30', category: 'combo'),
-    Achievement(id: 'combo_grandmaster', title: 'Rhythm Legend', description: 'Reach a combo of x50', category: 'combo'),
-    Achievement(id: 'first_crit', title: 'Lucky Hit', description: 'Trigger your first critical tap', category: 'critical'),
-    Achievement(id: 'crit_striker', title: 'Crit Striker', description: 'Trigger 50 critical taps', category: 'critical'),
-    Achievement(id: 'crit_master', title: 'Uncanny Accuracy', description: 'Trigger 200 critical taps', category: 'critical'),
-    Achievement(id: 'first_golden', title: 'Shiny Thing', description: 'Collect your first golden banana', category: 'golden'),
-    Achievement(id: 'golden_hunter', title: 'Golden Banana Hunter', description: 'Collect 10 golden bananas', category: 'golden'),
-    Achievement(id: 'golden_collector', title: 'Sunlight Seeker', description: 'Collect 50 golden bananas', category: 'golden'),
-    Achievement(id: 'first_relic', title: 'Ancient Find', description: 'Acquire your first Jungle Relic', category: 'map'),
-    Achievement(id: 'relic_collector', title: 'Curator', description: 'Acquire 3 Jungle Relics', category: 'map'),
-    Achievement(id: 'relic_hoarder', title: 'Archaeologist', description: 'Acquire 8 Jungle Relics', category: 'map'),
-    Achievement(id: 'map_unlocked_2', title: 'Village Visitor', description: 'Unlock the Banana Village map', category: 'map'),
-    Achievement(id: 'map_unlocked_3', title: 'Volcano Survivor', description: 'Unlock the Volcano Island map', category: 'map'),
-    Achievement(id: 'map_unlocked_6', title: 'Kingdom Emperor', description: 'Unlock the Golden Banana Kingdom map', category: 'map'),
-    Achievement(id: 'skin_collector_2', title: 'Monkey Wardrobe', description: 'Unlock 2 monkey skins', category: 'collection'),
-    Achievement(id: 'skin_collector_5', title: 'Cosplay Master', description: 'Unlock 5 monkey skins', category: 'collection'),
-    Achievement(id: 'first_rebirth', title: 'Reborn', description: 'Prestige for the first time', category: 'rebirth'),
-    Achievement(id: 'rebirth_3', title: 'Eternal Monkey', description: 'Prestige 3 times', category: 'rebirth'),
-    Achievement(id: 'rebirth_10', title: 'Infinite Cycle', description: 'Prestige 10 times', category: 'rebirth'),
+    Achievement(
+      id: 'first_banana',
+      title: 'First Banana',
+      description: 'Earn your first banana',
+      category: 'economy',
+    ),
+    Achievement(
+      id: 'banana_beginner',
+      title: 'Banana Beginner',
+      description: 'Earn 1,000 bananas in total',
+      category: 'economy',
+    ),
+    Achievement(
+      id: 'banana_collector',
+      title: 'Banana Collector',
+      description: 'Earn 10,000 bananas in total',
+      category: 'economy',
+    ),
+    Achievement(
+      id: 'banana_millionaire',
+      title: 'Banana Millionaire',
+      description: 'Earn 1,000,000 bananas in total',
+      category: 'economy',
+    ),
+    Achievement(
+      id: 'banana_billionaire',
+      title: 'Banana Billionaire',
+      description: 'Earn 1,000,000,000 bananas in total',
+      category: 'economy',
+    ),
+    Achievement(
+      id: 'banana_tycoon',
+      title: 'Banana Tycoon',
+      description: 'Earn 10,000,000,000 bananas in total',
+      category: 'economy',
+    ),
+    Achievement(
+      id: 'first_click',
+      title: 'Hello Monkey',
+      description: 'Tap the monkey for the first time',
+      category: 'tapping',
+    ),
+    Achievement(
+      id: 'monkey_friend',
+      title: 'Monkey Friend',
+      description: 'Tap the monkey 500 times',
+      category: 'tapping',
+    ),
+    Achievement(
+      id: 'monkey_lover',
+      title: 'Monkey Lover',
+      description: 'Tap the monkey 2,000 times',
+      category: 'tapping',
+    ),
+    Achievement(
+      id: 'monkey_devotee',
+      title: 'Monkey Devotee',
+      description: 'Tap the monkey 10,000 times',
+      category: 'tapping',
+    ),
+    Achievement(
+      id: 'combo_beginner',
+      title: 'Getting Groove',
+      description: 'Reach a combo of x10',
+      category: 'combo',
+    ),
+    Achievement(
+      id: 'combo_master',
+      title: 'Combo Master',
+      description: 'Reach a combo of x30',
+      category: 'combo',
+    ),
+    Achievement(
+      id: 'combo_grandmaster',
+      title: 'Rhythm Legend',
+      description: 'Reach a combo of x50',
+      category: 'combo',
+    ),
+    Achievement(
+      id: 'first_crit',
+      title: 'Lucky Hit',
+      description: 'Trigger your first critical tap',
+      category: 'critical',
+    ),
+    Achievement(
+      id: 'crit_striker',
+      title: 'Crit Striker',
+      description: 'Trigger 50 critical taps',
+      category: 'critical',
+    ),
+    Achievement(
+      id: 'crit_master',
+      title: 'Uncanny Accuracy',
+      description: 'Trigger 200 critical taps',
+      category: 'critical',
+    ),
+    Achievement(
+      id: 'first_golden',
+      title: 'Shiny Thing',
+      description: 'Collect your first golden banana',
+      category: 'golden',
+    ),
+    Achievement(
+      id: 'golden_hunter',
+      title: 'Golden Banana Hunter',
+      description: 'Collect 10 golden bananas',
+      category: 'golden',
+    ),
+    Achievement(
+      id: 'golden_collector',
+      title: 'Sunlight Seeker',
+      description: 'Collect 50 golden bananas',
+      category: 'golden',
+    ),
+    Achievement(
+      id: 'first_relic',
+      title: 'Ancient Find',
+      description: 'Acquire your first Jungle Relic',
+      category: 'map',
+    ),
+    Achievement(
+      id: 'relic_collector',
+      title: 'Curator',
+      description: 'Acquire 3 Jungle Relics',
+      category: 'map',
+    ),
+    Achievement(
+      id: 'relic_hoarder',
+      title: 'Archaeologist',
+      description: 'Acquire 8 Jungle Relics',
+      category: 'map',
+    ),
+    Achievement(
+      id: 'map_unlocked_2',
+      title: 'Village Visitor',
+      description: 'Unlock the Banana Village map',
+      category: 'map',
+    ),
+    Achievement(
+      id: 'map_unlocked_3',
+      title: 'Volcano Survivor',
+      description: 'Unlock the Volcano Island map',
+      category: 'map',
+    ),
+    Achievement(
+      id: 'map_unlocked_6',
+      title: 'Kingdom Emperor',
+      description: 'Unlock the Golden Banana Kingdom map',
+      category: 'map',
+    ),
+    Achievement(
+      id: 'skin_collector_2',
+      title: 'Monkey Wardrobe',
+      description: 'Unlock 2 monkey skins',
+      category: 'collection',
+    ),
+    Achievement(
+      id: 'skin_collector_5',
+      title: 'Cosplay Master',
+      description: 'Unlock 5 monkey skins',
+      category: 'collection',
+    ),
+    Achievement(
+      id: 'first_rebirth',
+      title: 'Reborn',
+      description: 'Prestige for the first time',
+      category: 'rebirth',
+    ),
+    Achievement(
+      id: 'rebirth_3',
+      title: 'Eternal Monkey',
+      description: 'Prestige 3 times',
+      category: 'rebirth',
+    ),
+    Achievement(
+      id: 'rebirth_10',
+      title: 'Infinite Cycle',
+      description: 'Prestige 10 times',
+      category: 'rebirth',
+    ),
   ];
 
   final List<Skin> _baseSkins = [
     // Jungle Skins
-    Skin(id: 'jungle_default', name: 'Jungle Monkey', cost: 0.0, imagePath: 'assets/images/monkeys/monkeydefault/jungle_monkey.png', bonusDescription: 'Default Jungle Skin - No bonus', mapId: 'jungle', isUnlocked: true, isEquipped: true),
-    Skin(id: 'jungle_skin1', name: 'Jungle Explorer', cost: 5000.0, imagePath: 'assets/images/monkeys/monkeyskins/jungle_monkey_skin1.png', bonusDescription: '+5% bananas per click', mapId: 'jungle'),
+    Skin(
+      id: 'jungle_default',
+      name: 'Jungle Monkey',
+      cost: 0.0,
+      imagePath: 'assets/images/monkeys/monkeydefault/jungle_monkey.png',
+      bonusDescription: 'Default Jungle Skin - No bonus',
+      mapId: 'jungle',
+      isUnlocked: true,
+      isEquipped: true,
+    ),
+    Skin(
+      id: 'jungle_skin1',
+      name: 'Jungle Explorer',
+      cost: 5000.0,
+      imagePath: 'assets/images/monkeys/monkeyskins/jungle_monkey_skin1.png',
+      bonusDescription: '+5% bananas per click',
+      mapId: 'jungle',
+    ),
 
     // Banana Village Skins
-    Skin(id: 'banana_village_default', name: 'Village Monkey', cost: 0.0, imagePath: 'assets/images/monkeys/monkeydefault/banana_village_monkey.png', bonusDescription: 'Default Village Skin - No bonus', mapId: 'banana_village', isUnlocked: true, isEquipped: true),
+    Skin(
+      id: 'banana_village_default',
+      name: 'Village Monkey',
+      cost: 0.0,
+      imagePath:
+          'assets/images/monkeys/monkeydefault/banana_village_monkey.png',
+      bonusDescription: 'Default Village Skin - No bonus',
+      mapId: 'banana_village',
+      isUnlocked: true,
+      isEquipped: true,
+    ),
 
     // Volcano Island Skins
-    Skin(id: 'volcano_island_default', name: 'Volcano Monkey', cost: 0.0, imagePath: 'assets/images/monkeys/monkeydefault/volcano_island_monkey.png', bonusDescription: 'Default Volcano Skin - No bonus', mapId: 'volcano_island', isUnlocked: true, isEquipped: true),
+    Skin(
+      id: 'volcano_island_default',
+      name: 'Volcano Monkey',
+      cost: 0.0,
+      imagePath:
+          'assets/images/monkeys/monkeydefault/volcano_island_monkey.png',
+      bonusDescription: 'Default Volcano Skin - No bonus',
+      mapId: 'volcano_island',
+      isUnlocked: true,
+      isEquipped: true,
+    ),
 
     // Ancient Temple Skins
-    Skin(id: 'ancient_temple_default', name: 'Ancient Monkey', cost: 0.0, imagePath: 'assets/images/monkeys/monkeydefault/ancient_temple_monkey.png', bonusDescription: 'Default Ancient Skin - No bonus', mapId: 'ancient_temple', isUnlocked: true, isEquipped: true),
+    Skin(
+      id: 'ancient_temple_default',
+      name: 'Ancient Monkey',
+      cost: 0.0,
+      imagePath:
+          'assets/images/monkeys/monkeydefault/ancient_temple_monkey.png',
+      bonusDescription: 'Default Ancient Skin - No bonus',
+      mapId: 'ancient_temple',
+      isUnlocked: true,
+      isEquipped: true,
+    ),
 
     // Cloud Jungle Skins
-    Skin(id: 'cloud_jungle_default', name: 'Cloud Monkey', cost: 0.0, imagePath: 'assets/images/monkeys/monkeydefault/cloud_jungle_monkey.png', bonusDescription: 'Default Cloud Skin - No bonus', mapId: 'cloud_jungle', isUnlocked: true, isEquipped: true),
+    Skin(
+      id: 'cloud_jungle_default',
+      name: 'Cloud Monkey',
+      cost: 0.0,
+      imagePath: 'assets/images/monkeys/monkeydefault/cloud_jungle_monkey.png',
+      bonusDescription: 'Default Cloud Skin - No bonus',
+      mapId: 'cloud_jungle',
+      isUnlocked: true,
+      isEquipped: true,
+    ),
 
     // Golden Kingdom Skins
-    Skin(id: 'golden_kingdom_default', name: 'Golden Monkey', cost: 0.0, imagePath: 'assets/images/monkeys/monkeydefault/golden_kingdom_monkey.png', bonusDescription: 'Default Golden Skin - No bonus', mapId: 'golden_kingdom', isUnlocked: true, isEquipped: true),
+    Skin(
+      id: 'golden_kingdom_default',
+      name: 'Golden Monkey',
+      cost: 0.0,
+      imagePath:
+          'assets/images/monkeys/monkeydefault/golden_kingdom_monkey.png',
+      bonusDescription: 'Default Golden Skin - No bonus',
+      mapId: 'golden_kingdom',
+      isUnlocked: true,
+      isEquipped: true,
+    ),
   ];
 
   final List<MapTheme> _baseMaps = [
@@ -1162,7 +1403,8 @@ class GameController extends ChangeNotifier {
       description: 'Warm yellow-green atmosphere of a rustic monkey hamlet',
       cost: 5000.0,
       backgroundPath: 'assets/images/backgrounds/bananajungle.png',
-      monkeyPath: 'assets/images/monkeys/monkeydefault/banana_village_monkey.png',
+      monkeyPath:
+          'assets/images/monkeys/monkeydefault/banana_village_monkey.png',
       primaryColor: const Color(0xFF689F38),
       secondaryColor: const Color(0xFFFFF8DC),
       darkBorderColor: const Color(0xFF8D6E63),
@@ -1176,7 +1418,8 @@ class GameController extends ChangeNotifier {
       description: 'Dark obsidian stone with burning lava cracks and fires',
       cost: 15000.0,
       backgroundPath: 'assets/images/backgrounds/volcanoisland.png',
-      monkeyPath: 'assets/images/monkeys/monkeydefault/volcano_island_monkey.png',
+      monkeyPath:
+          'assets/images/monkeys/monkeydefault/volcano_island_monkey.png',
       primaryColor: const Color(0xFFD84315),
       secondaryColor: const Color(0xFFECEFF1),
       darkBorderColor: const Color(0xFF212121),
@@ -1190,7 +1433,8 @@ class GameController extends ChangeNotifier {
       description: 'Carved mossy stones and forgotten treasures',
       cost: 50000.0,
       backgroundPath: 'assets/images/backgrounds/ancienttemple.png',
-      monkeyPath: 'assets/images/monkeys/monkeydefault/ancient_temple_monkey.png',
+      monkeyPath:
+          'assets/images/monkeys/monkeydefault/ancient_temple_monkey.png',
       primaryColor: const Color(0xFF00695C),
       secondaryColor: const Color(0xFFEFEBE9),
       darkBorderColor: const Color(0xFF4E342E),
@@ -1218,7 +1462,8 @@ class GameController extends ChangeNotifier {
       description: 'The royal golden throne room loaded with infinite wealth',
       cost: 250000.0,
       backgroundPath: 'assets/images/backgrounds/goldenbananakingdom.png',
-      monkeyPath: 'assets/images/monkeys/monkeydefault/golden_kingdom_monkey.png',
+      monkeyPath:
+          'assets/images/monkeys/monkeydefault/golden_kingdom_monkey.png',
       primaryColor: const Color(0xFFFFD54F),
       secondaryColor: const Color(0xFFFFFDE7),
       darkBorderColor: const Color(0xFFF57F17),
@@ -1229,11 +1474,41 @@ class GameController extends ChangeNotifier {
   ];
 
   final List<SkillNode> _baseSkills = [
-    SkillNode(id: 'strong_fingers', name: 'Strong Fingers', branch: 'Click Power', description: '+10% click power', cost: 1),
-    SkillNode(id: 'faster_helpers', name: 'Faster Helpers', branch: 'Helpers', description: '+10% idle income', cost: 1),
-    SkillNode(id: 'lucky_banana', name: 'Lucky Banana', branch: 'Luck', description: '+2% critical tap chance', cost: 1),
-    SkillNode(id: 'longer_combo', name: 'Longer Combo', branch: 'Luck', description: 'Combo reset duration +0.5s', cost: 2),
-    SkillNode(id: 'golden_luck', name: 'Golden Luck', branch: 'Luck', description: 'Golden Banana spawn chance increased', cost: 3),
+    SkillNode(
+      id: 'strong_fingers',
+      name: 'Strong Fingers',
+      branch: 'Click Power',
+      description: '+10% click power',
+      cost: 1,
+    ),
+    SkillNode(
+      id: 'faster_helpers',
+      name: 'Faster Helpers',
+      branch: 'Helpers',
+      description: '+10% idle income',
+      cost: 1,
+    ),
+    SkillNode(
+      id: 'lucky_banana',
+      name: 'Lucky Banana',
+      branch: 'Luck',
+      description: '+2% critical tap chance',
+      cost: 1,
+    ),
+    SkillNode(
+      id: 'longer_combo',
+      name: 'Longer Combo',
+      branch: 'Luck',
+      description: 'Combo reset duration +0.5s',
+      cost: 2,
+    ),
+    SkillNode(
+      id: 'golden_luck',
+      name: 'Golden Luck',
+      branch: 'Luck',
+      description: 'Golden Banana spawn chance increased',
+      cost: 3,
+    ),
   ];
 
   // ---------- Init Game ----------
@@ -1282,9 +1557,13 @@ class GameController extends ChangeNotifier {
     // 7. Load Quests
     _quests = _baseQuests.map((quest) {
       final claimed = prefs.getBool('quest_claimed_${quest.id}') ?? false;
-      final currentVal = _getQuestProgressValue(quest.type);
+      final currentVal = _getQuestProgressValue(quest.type, quest.layer);
       final completed = currentVal >= quest.targetValue;
-      return quest.copyWith(claimed: claimed, completed: completed, progress: currentVal);
+      return quest.copyWith(
+        claimed: claimed,
+        completed: completed,
+        progress: currentVal,
+      );
     }).toList();
 
     // 8. Offline Earnings calculation
@@ -1306,7 +1585,11 @@ class GameController extends ChangeNotifier {
       _offlineTimePassedHours = 0.0;
     }
 
-    final double rawEarnings = _offlineService.calculateEarnings(_stats, offlineMultiplier, capHours: capHours);
+    final double rawEarnings = _offlineService.calculateEarnings(
+      _stats,
+      offlineMultiplier,
+      capHours: capHours,
+    );
     final double offlineEarnings = rawEarnings * 0.60; // 60% efficiency factor
     if (offlineEarnings > 0) {
       _pendingOfflineEarnings = offlineEarnings;
@@ -1322,7 +1605,6 @@ class GameController extends ChangeNotifier {
     // 9. Start Core periodic loops
     _startPassiveIncomeTimer();
     _startAutoSaveTimer();
-    _startComboDecayTimer();
     _startGoldenBananaSpawnTimer();
 
     notifyListeners();
@@ -1354,38 +1636,24 @@ class GameController extends ChangeNotifier {
     });
   }
 
-  // ---------- Combo Decay Loop (50ms Tick) ----------
-  void _startComboDecayTimer() {
-    _comboDecayTimer?.cancel();
-    _comboDecayTimer = Timer.periodic(const Duration(milliseconds: 50), (timer) {
-      if (_comboProgress > 0.0) {
-        final now = DateTime.now().millisecondsSinceEpoch;
-        final elapsed = now - _lastTapTimestamp;
-
-        // Reset threshold duration calculation (1.2s base + combo upgrades + longer combo skill node)
-        double comboTimeBonus = 0.0;
-        for (var u in _upgrades) {
-          if (u.effectType == 'COMBO_TIME') {
-            comboTimeBonus += u.currentLevel * u.effectValue;
-          }
-        }
-        final double longerComboBonus = _isSkillUnlocked('longer_combo') ? 0.5 : 0.0;
-        final double totalComboDuration = 1200.0 + (comboTimeBonus * 1000.0) + (longerComboBonus * 1000.0);
-
-        if (elapsed >= totalComboDuration) {
-          _comboCount = 1;
-          _comboProgress = 0.0;
-          notifyListeners();
-        } else {
-          final newProgress = (totalComboDuration - elapsed) / totalComboDuration;
-          if ((_comboProgress - newProgress).abs() > 0.02) {
-            _comboProgress = newProgress;
-            notifyListeners();
-          } else {
-            _comboProgress = newProgress;
-          }
-        }
+  // ---------- Combo Decay (One-shot Timer) ----------
+  double get totalComboDurationMs {
+    double comboTimeBonus = 0.0;
+    for (var u in _upgrades) {
+      if (u.effectType == 'COMBO_TIME') {
+        comboTimeBonus += u.currentLevel * u.effectValue;
       }
+    }
+    final double longerComboBonus = _isSkillUnlocked('longer_combo') ? 0.5 : 0.0;
+    return 1200.0 + (comboTimeBonus * 1000.0) + (longerComboBonus * 1000.0);
+  }
+
+  void _resetComboTimer() {
+    _comboDecayTimer?.cancel();
+    _comboDecayTimer = Timer(Duration(milliseconds: totalComboDurationMs.toInt()), () {
+      _comboCount = 1;
+      _comboProgress = 0.0;
+      notifyListeners();
     });
   }
 
@@ -1394,36 +1662,45 @@ class GameController extends ChangeNotifier {
     _goldenBananaSpawnTimer?.cancel();
 
     // Schedule random spawn duration between 30 and 60 seconds (minus reduction)
-    final rand = Random();
     int reduction = 0;
     for (var u in _upgrades) {
       if (u.effectType == 'GOLDEN_INTERVAL') {
         reduction += (u.currentLevel * u.effectValue).toInt();
       }
     }
-    int minSecs = max(5, (_isSkillUnlocked('golden_luck') ? 20 : 30) - reduction);
-    int maxSecs = max(10, (_isSkillUnlocked('golden_luck') ? 40 : 60) - reduction);
-    int spawnInterval = minSecs + rand.nextInt(maxSecs - minSecs + 1);
+    int minSecs = max(
+      5,
+      (_isSkillUnlocked('golden_luck') ? 20 : 30) - reduction,
+    );
+    int maxSecs = max(
+      10,
+      (_isSkillUnlocked('golden_luck') ? 40 : 60) - reduction,
+    );
+    int spawnInterval = minSecs + _rng.nextInt(maxSecs - minSecs + 1);
 
     _goldenBananaSpawnTimer = Timer(Duration(seconds: spawnInterval), () {
       if (!_showGoldenBanana && !_isBananaRainActive) {
-        _goldenBananaX = rand.nextDouble() * 0.7 + 0.15; // 15% to 85% width
-        _goldenBananaY = rand.nextDouble() * 0.4 + 0.25; // 25% to 65% height
+        _goldenBananaX = _rng.nextDouble() * 0.7 + 0.15; // 15% to 85% width
+        _goldenBananaY = _rng.nextDouble() * 0.4 + 0.25; // 25% to 65% height
         _showGoldenBanana = true;
         notifyListeners();
 
         // Auto hide timeout
         _goldenBananaTimeoutTimer?.cancel();
-        final double durationBonus = activeSkinIdForCurrentMap == 'ancient_temple_default' ? 2.0 : 0.0;
+        final double durationBonus =
+            activeSkinIdForCurrentMap == 'ancient_temple_default' ? 2.0 : 0.0;
         final double totalDuration = 5.0 + durationBonus;
 
-        _goldenBananaTimeoutTimer = Timer(Duration(milliseconds: (totalDuration * 1000).toInt()), () {
-          if (_showGoldenBanana) {
-            _showGoldenBanana = false;
-            notifyListeners();
-            _startGoldenBananaSpawnTimer(); // schedule next spawn
-          }
-        });
+        _goldenBananaTimeoutTimer = Timer(
+          Duration(milliseconds: (totalDuration * 1000).toInt()),
+          () {
+            if (_showGoldenBanana) {
+              _showGoldenBanana = false;
+              notifyListeners();
+              _startGoldenBananaSpawnTimer(); // schedule next spawn
+            }
+          },
+        );
       } else {
         _startGoldenBananaSpawnTimer();
       }
@@ -1451,7 +1728,7 @@ class GameController extends ChangeNotifier {
       HapticFeedback.heavyImpact();
       _levelUpNotification = 'LEVEL UP! MONKEY LEVEL $currentLevel';
       notifyListeners();
-      
+
       // Auto-clear notification after 2.5s
       Timer(const Duration(milliseconds: 2500), () {
         _levelUpNotification = null;
@@ -1473,6 +1750,7 @@ class GameController extends ChangeNotifier {
       _comboCount = 2; // start a new combo
     }
     _comboProgress = 1.0;
+    _resetComboTimer();
 
     // 2. Critical hit chance calculations (+upgrades +Ninja skin + Lucky Banana skill)
     double critChance = 0.05; // Base critical chance is 5%
@@ -1484,8 +1762,8 @@ class GameController extends ChangeNotifier {
     if (activeSkinIdForCurrentMap == 'ninja_skin') critChance += 0.03;
     if (_isSkillUnlocked('lucky_banana')) critChance += 0.02;
 
-    final isCrit = Random().nextDouble() < critChance;
-    
+    final isCrit = _rng.nextDouble() < critChance;
+
     // Critical multiplier calculations (+upgrades)
     double activeCritMultiplier = 1.0;
     if (isCrit) {
@@ -1497,9 +1775,9 @@ class GameController extends ChangeNotifier {
       }
     }
 
-    // 3. Earn calculation using calculateCurrentBpc() directly
-    final double earned = calculateCurrentBpc() * activeCritMultiplier;
-    
+    // 3. Earn calculation using cached bananasPerClick directly
+    final double earned = _stats.bananasPerClick * activeCritMultiplier;
+
     // 4. Update stats
     _stats = _stats.copyWith(
       totalBananas: _stats.totalBananas + earned,
@@ -1516,24 +1794,6 @@ class GameController extends ChangeNotifier {
       _audioService.playTap();
     }
 
-    // 5. Spawn Floating Reward text particles with unique IDs
-    final int effId = _nextEffectId++;
-    final String label = isCrit ? 'CRITICAL!\n+${_formatVal(earned)}' : '+${_formatVal(earned)}';
-    
-    final rand = Random();
-    // Random offsets relative to screen center
-    final double xOffset = rand.nextDouble() * 160 - 80;
-    final double yOffset = rand.nextDouble() * 100 - 50;
-
-    _floatingEffects.add(FloatingEffect(
-      id: effId,
-      text: label,
-      xOffset: xOffset,
-      yOffset: yOffset,
-      isCritical: isCrit,
-      createdAt: DateTime.now(),
-    ));
-
     // XP gain (+1 per click)
     _addXp(1.0);
 
@@ -1545,16 +1805,15 @@ class GameController extends ChangeNotifier {
   }
 
   // ---------- Golden Banana Click ----------
-  void tapGoldenBanana() {
-    if (!_showGoldenBanana) return;
+  GoldenBananaResult? tapGoldenBanana() {
+    if (!_showGoldenBanana) return null;
     _showGoldenBanana = false;
     _audioService.playGoldenBanana();
 
-    // 1. Roll rewards (3 choices)
-    final rand = Random();
-    final choice = rand.nextInt(3);
+    // Roll rewards (4 choices: 0=Instant, 1=2x tap power, 2=2x idle income, 3=Banana Rain!)
+    final choice = _rng.nextInt(4);
 
-    final double bpc = calculateCurrentBpc();
+    final double bpc = _stats.bananasPerClick;
 
     // Golden upgrades multipliers
     double goldenDurationBonus = 0.0;
@@ -1562,70 +1821,14 @@ class GameController extends ChangeNotifier {
     for (var u in _upgrades) {
       if (u.id == 'golden_banana') {
         goldenDurationBonus += u.currentLevel * 1.0; // +1s per level
-        goldenRewardMult += u.currentLevel * u.effectValue; // +10% reward per level
+        goldenRewardMult +=
+            u.currentLevel * u.effectValue; // +10% reward per level
       } else if (u.effectType == 'GOLDEN_DUR') {
         goldenDurationBonus += u.currentLevel * u.effectValue; // +2s per level
       } else if (u.effectType == 'GOLDEN_REWARD') {
-        goldenRewardMult += u.currentLevel * u.effectValue; // +25% reward per level
+        goldenRewardMult +=
+            u.currentLevel * u.effectValue; // +25% reward per level
       }
-    }
-
-    if (choice == 0) {
-      // Instant reward (100 * BPC, min 500) multiplied by golden reward upgrades, meta, and world reward multiplier
-      final baseReward = (100.0 * bpc).clamp(500.0, double.infinity);
-      double metaGoldenMult = 1.0 + (_stats.metaGoldenLevel * 0.15); // Shiny Totem
-      
-      final reward = baseReward * goldenRewardMult * metaGoldenMult * currentMapProgression.worldRewardMultiplier;
-      _stats = _stats.copyWith(
-        totalBananas: _stats.totalBananas + reward,
-        questBananasEarned: _stats.questBananasEarned + reward,
-        questGoldenBananasCollected: _stats.questGoldenBananasCollected + 1,
-      );
-      
-      // Floating notification particle
-      final effId = _nextEffectId++;
-      _floatingEffects.add(FloatingEffect(
-        id: effId,
-        text: 'GOLDEN REWARD!\n+${_formatVal(reward)}',
-        xOffset: 0.0,
-        yOffset: -100.0,
-        isCritical: true,
-        createdAt: DateTime.now(),
-      ));
-    } else if (choice == 1) {
-      // 2x Click power for 30s + upgrades bonus duration
-      final int totalDurationMs = (30.0 + goldenDurationBonus).toInt() * 1000;
-      _goldenTapExpiresAt = DateTime.now().millisecondsSinceEpoch + totalDurationMs;
-      _stats = _stats.copyWith(
-        questGoldenBananasCollected: _stats.questGoldenBananasCollected + 1,
-      );
-
-      final effId = _nextEffectId++;
-      _floatingEffects.add(FloatingEffect(
-        id: effId,
-        text: '2x TAP POWER!',
-        xOffset: 0.0,
-        yOffset: -100.0,
-        isCritical: true,
-        createdAt: DateTime.now(),
-      ));
-    } else {
-      // 2x Idle power for 30s + upgrades bonus duration
-      final int totalDurationMs = (30.0 + goldenDurationBonus).toInt() * 1000;
-      _goldenIdleExpiresAt = DateTime.now().millisecondsSinceEpoch + totalDurationMs;
-      _stats = _stats.copyWith(
-        questGoldenBananasCollected: _stats.questGoldenBananasCollected + 1,
-      );
-
-      final effId = _nextEffectId++;
-      _floatingEffects.add(FloatingEffect(
-        id: effId,
-        text: '2x IDLE INCOME!',
-        xOffset: 0.0,
-        yOffset: -100.0,
-        isCritical: true,
-        createdAt: DateTime.now(),
-      ));
     }
 
     _goldenBananaTimeoutTimer?.cancel();
@@ -1634,91 +1837,100 @@ class GameController extends ChangeNotifier {
     saveGame();
     _startGoldenBananaSpawnTimer(); // Reschedule next
     notifyListeners();
+
+    if (choice == 0) {
+      // Instant reward
+      final baseReward = (100.0 * bpc).clamp(500.0, double.infinity);
+      double metaGoldenMult =
+          1.0 + (_stats.metaGoldenLevel * 0.15); // Shiny Totem
+
+      final reward =
+          baseReward *
+          goldenRewardMult *
+          metaGoldenMult *
+          currentMapProgression.worldRewardMultiplier;
+      _stats = _stats.copyWith(
+        totalBananas: _stats.totalBananas + reward,
+        questBananasEarned: _stats.questBananasEarned + reward,
+        questGoldenBananasCollected: _stats.questGoldenBananasCollected + 1,
+      );
+
+      return GoldenBananaResult(
+        text: 'GOLDEN REWARD!\n+${_formatVal(reward)}',
+      );
+    } else if (choice == 1) {
+      // 2x Tap power for 30s
+      final int totalDurationMs = (30.0 + goldenDurationBonus).toInt() * 1000;
+      _goldenTapExpiresAt =
+          DateTime.now().millisecondsSinceEpoch + totalDurationMs;
+      _stats = _stats.copyWith(
+        questGoldenBananasCollected: _stats.questGoldenBananasCollected + 1,
+      );
+
+      return GoldenBananaResult(
+        text: '2x TAP POWER!',
+      );
+    } else if (choice == 2) {
+      // 2x Idle power for 30s
+      final int totalDurationMs = (30.0 + goldenDurationBonus).toInt() * 1000;
+      _goldenIdleExpiresAt =
+          DateTime.now().millisecondsSinceEpoch + totalDurationMs;
+      _stats = _stats.copyWith(
+        questGoldenBananasCollected: _stats.questGoldenBananasCollected + 1,
+      );
+
+      return GoldenBananaResult(
+        text: '2x IDLE INCOME!',
+      );
+    } else {
+      // Banana Rain!
+      _stats = _stats.copyWith(
+        questGoldenBananasCollected: _stats.questGoldenBananasCollected + 1,
+      );
+      startBananaRain();
+      return GoldenBananaResult(
+        text: 'BANANA RAIN!',
+        startsBananaRain: true,
+      );
+    }
   }
 
   // ---------- Banana Rain Event ----------
   void startBananaRain() {
     if (_isBananaRainActive) return;
     _isBananaRainActive = true;
-    _fallingBananas.clear();
     notifyListeners();
 
-    final rand = Random();
-    int elapsedMs = 0;
-
-    // Spawn falling bananas every 400ms for 10s
-    _bananaRainSpawnTimer = Timer.periodic(const Duration(milliseconds: 400), (timer) {
-      elapsedMs += 400;
-      if (elapsedMs >= 10000) {
-        _bananaRainSpawnTimer?.cancel();
-        // Wait another 3s for last bananas to fall before resetting rain status
-        Timer(const Duration(seconds: 3), () {
-          _isBananaRainActive = false;
-          _fallingBananas.clear();
-          notifyListeners();
-        });
-      } else {
-        final id = _fallingBananaIdCounter++;
-        final double x = rand.nextDouble(); // horizontal percentage
-        final double speed = rand.nextDouble() * 3.0 + 2.5; // fall speed
-        _fallingBananas.add(FallingBanana(id: id, x: x, speed: speed));
-        notifyListeners();
-      }
-    });
-
-    // Tick/animate falling bananas downwards every 30ms
-    _bananaRainUpdateTimer = Timer.periodic(const Duration(milliseconds: 30), (timer) {
-      if (_fallingBananas.isEmpty && !_isBananaRainActive) {
-        _bananaRainUpdateTimer?.cancel();
-        return;
-      }
-      
-      bool updated = false;
-      for (var banana in _fallingBananas) {
-        banana.y += banana.speed;
-        updated = true;
-      }
-
-      // Filter out bananas that fell off-screen (y > 700)
-      _fallingBananas.removeWhere((b) => b.y > 720.0);
-      if (updated) {
-        notifyListeners();
-      }
+    // Reset status after 10s
+    Timer(const Duration(seconds: 10), () {
+      _isBananaRainActive = false;
+      notifyListeners();
     });
   }
 
   // ---------- Collect Falling Banana Tap ----------
-  void tapFallingBanana(int id) {
-    _fallingBananas.removeWhere((b) => b.id == id);
+  double collectRainBanana() {
     _audioService.playTap();
 
-    // Reward: calculateCurrentBpc() * rainCloudMultiplier * worldRewardMultiplier
     double rainMult = 1.0;
     for (var u in _upgrades) {
       if (u.effectType == 'RAIN_BOOST') {
         rainMult += u.currentLevel * u.effectValue;
       }
     }
-    final double reward = calculateCurrentBpc() * rainMult * currentMapProgression.worldRewardMultiplier;
+    final double reward =
+        calculateCurrentBpc() *
+        rainMult *
+        currentMapProgression.worldRewardMultiplier;
     _stats = _stats.copyWith(
       totalBananas: _stats.totalBananas + reward,
       questBananasEarned: _stats.questBananasEarned + reward,
     );
 
-    // Floating text particle
-    final effId = _nextEffectId++;
-    _floatingEffects.add(FloatingEffect(
-      id: effId,
-      text: '+${_formatVal(reward)}',
-      xOffset: Random().nextDouble() * 60 - 30,
-      yOffset: Random().nextDouble() * 60 - 30,
-      isCritical: false,
-      createdAt: DateTime.now(),
-    ));
-
     _checkQuests();
     _checkAchievements();
     notifyListeners();
+    return reward;
   }
 
   // ---------- Purchase Upgrades ----------
@@ -1735,7 +1947,7 @@ class GameController extends ChangeNotifier {
       }
       return u;
     }).toList();
-    
+
     // Deduct cost
     _stats = _stats.copyWith(
       totalBananas: _stats.totalBananas - cost,
@@ -1761,7 +1973,8 @@ class GameController extends ChangeNotifier {
   // ---------- Skin Marketplace Actions ----------
   bool buySkin(String skinId) {
     final skin = _skins.firstWhere((s) => s.id == skinId);
-    if (_stats.totalBananas < skin.cost || _stats.unlockedSkins.contains(skinId)) {
+    if (_stats.totalBananas < skin.cost ||
+        _stats.unlockedSkins.contains(skinId)) {
       return false;
     }
 
@@ -1789,11 +2002,13 @@ class GameController extends ChangeNotifier {
     final skin = _skins.firstWhere((s) => s.id == skinId);
     final mapId = skin.mapId;
 
-    final Map<String, String> newEquippedMapSkins = Map<String, String>.from(_stats.equippedMapSkins);
+    final Map<String, String> newEquippedMapSkins = Map<String, String>.from(
+      _stats.equippedMapSkins,
+    );
     newEquippedMapSkins[mapId] = skinId;
 
     _stats = _stats.copyWith(equippedMapSkins: newEquippedMapSkins);
-    
+
     _skins = _skins.map((s) {
       if (s.mapId == mapId) {
         return s.copyWith(isEquipped: s.id == skinId);
@@ -1839,7 +2054,7 @@ class GameController extends ChangeNotifier {
     if (!_stats.unlockedMaps.contains(mapId)) return false;
 
     _stats = _stats.copyWith(equippedMap: mapId);
-    
+
     _maps = _maps.map((m) {
       return m.copyWith(isEquipped: m.id == mapId);
     }).toList();
@@ -1852,7 +2067,8 @@ class GameController extends ChangeNotifier {
   // ---------- Skill Tree Purchase Actions ----------
   bool buySkillNode(String skillId) {
     final skill = _skills.firstWhere((s) => s.id == skillId);
-    if (_stats.goldenSeeds < skill.cost || _stats.unlockedSkills.contains(skillId)) {
+    if (_stats.goldenSeeds < skill.cost ||
+        _stats.unlockedSkills.contains(skillId)) {
       return false;
     }
 
@@ -1947,7 +2163,7 @@ class GameController extends ChangeNotifier {
       bananasPerClick: 1.0,
       bananasPerSecond: 0.0,
       lastSavedTime: DateTime.now().millisecondsSinceEpoch,
-      
+
       // Retain quests clicks & collection metrics
       questClicks: _stats.questClicks,
       questBananasEarned: _stats.questBananasEarned,
@@ -2035,8 +2251,7 @@ class GameController extends ChangeNotifier {
 
   // ---------- Remove Floating reward particle from stack ----------
   void removeFloatingEffect(int id) {
-    _floatingEffects.removeWhere((eff) => eff.id == id);
-    notifyListeners();
+    // Deprecated, handled locally in UI
   }
 
   // ---------- Wipes Data and Restart ----------
@@ -2046,8 +2261,6 @@ class GameController extends ChangeNotifier {
     _comboDecayTimer?.cancel();
     _goldenBananaSpawnTimer?.cancel();
     _goldenBananaTimeoutTimer?.cancel();
-    _bananaRainSpawnTimer?.cancel();
-    _bananaRainUpdateTimer?.cancel();
 
     await _saveService.clearAll();
 
@@ -2077,14 +2290,11 @@ class GameController extends ChangeNotifier {
     _pendingOfflineEarnings = 0.0;
     _offlineTimePassedHours = 0.0;
     _offlineTimeClampedHours = 0.0;
-    _floatingEffects.clear();
-    _fallingBananas.clear();
     _isBananaRainActive = false;
 
     // Start loops
     _startPassiveIncomeTimer();
     _startAutoSaveTimer();
-    _startComboDecayTimer();
     _startGoldenBananaSpawnTimer();
 
     notifyListeners();
@@ -2110,9 +2320,12 @@ class GameController extends ChangeNotifier {
 
     // 1. Combo multiplier
     double baseComboBonus = 0.0;
-    if (_comboCount >= 50) baseComboBonus = 0.50;
-    else if (_comboCount >= 25) baseComboBonus = 0.25;
-    else if (_comboCount >= 10) baseComboBonus = 0.10;
+    if (_comboCount >= 50)
+      baseComboBonus = 0.50;
+    else if (_comboCount >= 25)
+      baseComboBonus = 0.25;
+    else if (_comboCount >= 10)
+      baseComboBonus = 0.10;
 
     double comboBonusFactor = 1.0;
     for (var u in _upgrades) {
@@ -2120,8 +2333,10 @@ class GameController extends ChangeNotifier {
         comboBonusFactor += u.currentLevel * u.effectValue;
       }
     }
-    double metaComboFactor = 1.0 + (_stats.metaComboLevel * 0.15); // Rhythm Drums
-    double comboMultiplier = 1.0 + (baseComboBonus * comboBonusFactor * metaComboFactor);
+    double metaComboFactor =
+        1.0 + (_stats.metaComboLevel * 0.15); // Rhythm Drums
+    double comboMultiplier =
+        1.0 + (baseComboBonus * comboBonusFactor * metaComboFactor);
     bpc *= comboMultiplier;
 
     // 2. Golden banana tap active multiplier (2x)
@@ -2132,8 +2347,10 @@ class GameController extends ChangeNotifier {
     // 3. Skin multipliers
     double skinMultiplier = 1.0;
     final activeSkin = activeSkinIdForCurrentMap;
-    if (activeSkin == 'jungle_skin1') skinMultiplier += 0.05; // +5% click power (Explorer skin)
-    if (activeSkin == 'golden_kingdom_default') skinMultiplier += 0.25; // +25% click power / all income
+    if (activeSkin == 'jungle_skin1')
+      skinMultiplier += 0.05; // +5% click power (Explorer skin)
+    if (activeSkin == 'golden_kingdom_default')
+      skinMultiplier += 0.25; // +25% click power / all income
     bpc *= skinMultiplier;
 
     // 4. Level-up bonus (+1% all income per level)
@@ -2193,7 +2410,8 @@ class GameController extends ChangeNotifier {
     // Skins multiplier
     double skinMultiplier = 1.0;
     final activeSkin = activeSkinIdForCurrentMap;
-    if (activeSkin == 'golden_kingdom_default') skinMultiplier += 0.25; // +25% all income
+    if (activeSkin == 'golden_kingdom_default')
+      skinMultiplier += 0.25; // +25% all income
     bps *= skinMultiplier;
 
     // Level-up multiplier
@@ -2263,18 +2481,27 @@ class GameController extends ChangeNotifier {
   double _getQuestProgressValue(String type, String layer) {
     if (layer == 'daily') {
       switch (type) {
-        case 'clicks': return _stats.dailyClicks.toDouble();
-        case 'bananas': return _stats.dailyBananas;
-        case 'golden': return _stats.dailyGolden.toDouble();
-        case 'combo': return _stats.dailyMaxCombo.toDouble();
-        case 'upgrades': return _stats.dailyUpgrades.toDouble();
+        case 'clicks':
+          return _stats.dailyClicks.toDouble();
+        case 'bananas':
+          return _stats.dailyBananas;
+        case 'golden':
+          return _stats.dailyGolden.toDouble();
+        case 'combo':
+          return _stats.dailyMaxCombo.toDouble();
+        case 'upgrades':
+          return _stats.dailyUpgrades.toDouble();
       }
     } else if (layer == 'weekly') {
       switch (type) {
-        case 'clicks': return _stats.weeklyClicks.toDouble();
-        case 'bananas': return _stats.weeklyBananas;
-        case 'golden': return _stats.weeklyGolden.toDouble();
-        case 'crits': return _stats.weeklyCrits.toDouble();
+        case 'clicks':
+          return _stats.weeklyClicks.toDouble();
+        case 'bananas':
+          return _stats.weeklyBananas;
+        case 'golden':
+          return _stats.weeklyGolden.toDouble();
+        case 'crits':
+          return _stats.weeklyCrits.toDouble();
       }
     }
     switch (type) {
@@ -2304,6 +2531,9 @@ class GameController extends ChangeNotifier {
   }
 
   void _checkQuests() {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    if (now - _lastQuestCheckTimestamp < 500) return;
+    
     _quests = _quests.map((quest) {
       final double currentVal = _getQuestProgressValue(quest.type, quest.layer);
       final completed = currentVal >= quest.targetValue;
@@ -2313,6 +2543,10 @@ class GameController extends ChangeNotifier {
 
   // ---------- Achievements Unlock Checks ----------
   void _checkAchievements() {
+    final nowCheck = DateTime.now().millisecondsSinceEpoch;
+    if (nowCheck - _lastQuestCheckTimestamp < 500) return;
+    _lastQuestCheckTimestamp = nowCheck; // Update the throttle timestamp here since this is called right after _checkQuests
+    
     bool updated = false;
 
     final Map<String, bool> conditions = {
@@ -2353,12 +2587,12 @@ class GameController extends ChangeNotifier {
       if (met && !ach.unlocked) {
         updated = true;
         final now = DateTime.now().millisecondsSinceEpoch;
-        
+
         // Trigger notification sound / banner
         HapticFeedback.mediumImpact();
         _audioService.playQuestComplete();
         _achievementUnlockNotification = 'ACHIEVEMENT UNLOCKED: ${ach.title}';
-        
+
         Timer(const Duration(milliseconds: 3000), () {
           _achievementUnlockNotification = null;
           notifyListeners();
@@ -2387,8 +2621,6 @@ class GameController extends ChangeNotifier {
     _comboDecayTimer?.cancel();
     _goldenBananaSpawnTimer?.cancel();
     _goldenBananaTimeoutTimer?.cancel();
-    _bananaRainSpawnTimer?.cancel();
-    _bananaRainUpdateTimer?.cancel();
     super.dispose();
   }
 }

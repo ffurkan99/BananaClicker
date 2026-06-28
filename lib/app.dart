@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'controllers/game_controller.dart';
@@ -48,6 +49,47 @@ class _BananaClickerAppState extends State<BananaClickerApp> {
   bool _showSkillTree = false;
   bool _assetsCached = false;
   final TextEditingController _cheatBalanceController = TextEditingController();
+  Set<String> _seenAffordableUpgrades = {};
+  Set<String> _seenClaimableQuests = {};
+  bool _seenWorldTravelReady = false;
+  GameTab _previousTab = GameTab.jungle;
+  late final PageController _pageController;
+
+  static const _tabOrder = {
+    GameTab.jungle: 0,
+    GameTab.upgrades: 1,
+    GameTab.world: 2,
+    GameTab.quests: 3,
+    GameTab.shop: 4,
+  };
+
+  static const _tabList = [
+    GameTab.jungle,
+    GameTab.upgrades,
+    GameTab.world,
+    GameTab.quests,
+    GameTab.shop,
+  ];
+
+  void _switchTab(GameTab next) {
+    if (next == _selectedTab) return;
+    final nextIndex = _tabOrder[next]!;
+    setState(() {
+      _previousTab = _selectedTab;
+      _selectedTab = next;
+    });
+    _pageController.animateToPage(
+      nextIndex,
+      duration: const Duration(milliseconds: 350),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController(initialPage: 0);
+  }
 
   @override
   void didChangeDependencies() {
@@ -71,6 +113,7 @@ class _BananaClickerAppState extends State<BananaClickerApp> {
   @override
   void dispose() {
     _cheatBalanceController.dispose();
+    _pageController.dispose();
     super.dispose();
   }
 
@@ -87,6 +130,40 @@ class _BananaClickerAppState extends State<BananaClickerApp> {
       case GameTab.shop:
         return const ShopScreen();
     }
+  }
+
+  int _tabIndex(GameTab tab) => _tabOrder[tab] ?? 0;
+
+  Widget _buildPageView() {
+    return ScrollConfiguration(
+      behavior: ScrollConfiguration.of(context).copyWith(
+        dragDevices: {
+          PointerDeviceKind.touch,
+          PointerDeviceKind.mouse,
+          PointerDeviceKind.trackpad,
+        },
+      ),
+      child: PageView(
+        controller: _pageController,
+        physics: const ClampingScrollPhysics(),
+        onPageChanged: (index) {
+          final next = _tabList[index];
+          if (next != _selectedTab) {
+            setState(() {
+              _previousTab = _selectedTab;
+              _selectedTab = next;
+            });
+          }
+        },
+        children: const [
+          JungleScreen(),
+          UpgradesScreen(),
+          WorldMapScreen(),
+          QuestsScreen(),
+          ShopScreen(),
+        ],
+      ),
+    );
   }
 
   String _getMapBackgroundAsset(MapTheme theme) {
@@ -116,16 +193,40 @@ class _BananaClickerAppState extends State<BananaClickerApp> {
     final stats = controller.stats;
     final theme = controller.selectedMapTheme;
 
-    final hasUpgradeable = controller.upgrades.any((u) =>
-        u.currentLevel < u.maxLevel &&
-        stats.totalBananas >= u.getCost(controller.currentMapProgression.worldCostMultiplier));
-    final hasClaimableQuest = controller.quests.any((q) => q.completed && !q.claimed);
-    final hasWorldTravelReady = stats.totalBananas >= controller.currentMapProgression.unlockTarget &&
+    final currentAffordableUpgrades = controller.upgrades
+        .where((u) =>
+            u.currentLevel < u.maxLevel &&
+            stats.totalBananas >= u.getCost(controller.currentMapProgression.worldCostMultiplier))
+        .map((u) => u.id)
+        .toSet();
+
+    if (_selectedTab == GameTab.upgrades) {
+      _seenAffordableUpgrades = currentAffordableUpgrades;
+    }
+    final showUpgradesGlow = currentAffordableUpgrades.any((id) => !_seenAffordableUpgrades.contains(id));
+
+    final currentClaimableQuests = controller.quests
+        .where((q) => q.completed && !q.claimed)
+        .map((q) => q.id)
+        .toSet();
+
+    if (_selectedTab == GameTab.quests) {
+      _seenClaimableQuests = currentClaimableQuests;
+    }
+    final showQuestsGlow = currentClaimableQuests.any((id) => !_seenClaimableQuests.contains(id));
+
+    final currentWorldTravelReady = stats.totalBananas >= controller.currentMapProgression.unlockTarget &&
         controller.currentMapProgression.worldIndex < controller.mapProgressions.length;
+
+    if (_selectedTab == GameTab.world) {
+      _seenWorldTravelReady = currentWorldTravelReady;
+    }
+    final showWorldGlow = currentWorldTravelReady && !_seenWorldTravelReady;
+
     final glowingTabs = <GameTab>{
-      if (hasUpgradeable) GameTab.upgrades,
-      if (hasClaimableQuest) GameTab.quests,
-      if (hasWorldTravelReady) GameTab.world,
+      if (showUpgradesGlow && _selectedTab != GameTab.upgrades) GameTab.upgrades,
+      if (showQuestsGlow && _selectedTab != GameTab.quests) GameTab.quests,
+      if (showWorldGlow && _selectedTab != GameTab.world) GameTab.world,
     };
 
     return Scaffold(
@@ -204,19 +305,15 @@ class _BananaClickerAppState extends State<BananaClickerApp> {
 
                       const SizedBox(height: 4),
 
-                      // Active Tab Content
+                      // Active Tab Content — PageView handles swipe and animation natively
                       Expanded(
-                        child: _buildSelectedScreen(),
+                        child: _buildPageView(),
                       ),
 
                       // Wooden Bottom Navigation Bar
                       PixelBottomNavBar(
                         selectedTab: _selectedTab,
-                        onTabSelected: (tab) {
-                          setState(() {
-                            _selectedTab = tab;
-                          });
-                        },
+                        onTabSelected: _switchTab,
                         darkBorderColor: theme.darkBorderColor,
                         activeColor: theme.primaryColor,
                         glowingTabs: glowingTabs,

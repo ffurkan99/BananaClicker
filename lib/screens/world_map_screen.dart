@@ -124,6 +124,7 @@ class _WorldMapScreenState extends State<WorldMapScreen>
         Expanded(
           child: ListView.builder(
             controller: _scrollController,
+            physics: const BouncingScrollPhysics(),
             padding: const EdgeInsets.only(left: 16, right: 16, bottom: 120, top: 4),
             itemCount: maps.length,
             itemBuilder: (context, index) {
@@ -411,10 +412,14 @@ class _WorldMapCard extends StatelessWidget {
                                 0, 0, 0, 1, 0,
                               ]),
                               child: Image.asset(map.imagePath,
-                                  fit: BoxFit.cover, filterQuality: FilterQuality.low),
+                                  fit: BoxFit.cover,
+                                  filterQuality: FilterQuality.low,
+                                  cacheWidth: 400),
                             )
                           : Image.asset(map.imagePath,
-                              fit: BoxFit.cover, filterQuality: FilterQuality.low),
+                              fit: BoxFit.cover,
+                              filterQuality: FilterQuality.low,
+                              cacheWidth: 400),
                     ),
 
                     // Overlay

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../controllers/game_controller.dart';
 import '../models/map_theme.dart';
+import '../models/floating_effect.dart';
 import '../theme/pixel_theme.dart';
 import '../widgets/combo_meter.dart';
 import '../widgets/floating_reward_text.dart';
@@ -11,7 +12,7 @@ import 'golden_banana_event.dart';
 class MonkeyHeroArea extends StatefulWidget {
   final int comboCount;
   final double comboProgress;
-  final VoidCallback onMonkeyTap;
+  final TapResult Function() onMonkeyTap;
 
   const MonkeyHeroArea({
     Key? key,
@@ -38,6 +39,10 @@ class _MonkeyHeroAreaState extends State<MonkeyHeroArea> with TickerProviderStat
   // Local sparkle / banana particles for aesthetics (decoration)
   final List<_LocalDecorationParticle> _localParticles = [];
   int _localParticleCounter = 0;
+
+  // Local floating reward texts
+  final List<FloatingEffect> _localFloatingEffects = [];
+  int _localFloatingIdCounter = 0;
 
   @override
   void initState() {
@@ -84,38 +89,56 @@ class _MonkeyHeroAreaState extends State<MonkeyHeroArea> with TickerProviderStat
 
   void _handlePointerDown(PointerDownEvent event) {
     _squashController.forward(from: 0.0);
-    widget.onMonkeyTap();
+    final result = widget.onMonkeyTap();
 
     // Spawn local decoration particles (sparkles and small bananas)
     final localOffset = event.localPosition;
     final rand = Random();
     
-    if (_localParticles.length >= 20) return;
-    setState(() {
-      // 1. Spawning decorative banana particles
-      for (int i = 0; i < 3; i++) {
-        _localParticles.add(_LocalDecorationParticle(
-          id: _localParticleCounter++,
-          type: 'banana',
-          x: localOffset.dx,
-          y: localOffset.dy,
-          angle: -rand.nextDouble() * pi,
-          speed: rand.nextDouble() * 3.5 + 2.0,
-          scale: rand.nextDouble() * 0.3 + 0.7,
-        ));
-      }
+    final double xOffset = localOffset.dx - 130;
+    final double yOffset = localOffset.dy - 130;
+    final String label = result.isCritical
+        ? 'CRITICAL!\n+${_formatVal(result.earned)}'
+        : '+${_formatVal(result.earned)}';
 
-      // 2. Spawning decorative sparkles
-      for (int i = 0; i < 4; i++) {
-        _localParticles.add(_LocalDecorationParticle(
-          id: _localParticleCounter++,
-          type: 'sparkle',
-          x: localOffset.dx,
-          y: localOffset.dy,
-          angle: -rand.nextDouble() * pi * 1.2 + 0.2,
-          speed: rand.nextDouble() * 4.5 + 2.5,
-          scale: rand.nextDouble() * 0.4 + 0.8,
-        ));
+    setState(() {
+      _localFloatingEffects.add(
+        FloatingEffect(
+          id: _localFloatingIdCounter++,
+          text: label,
+          xOffset: xOffset,
+          yOffset: yOffset,
+          isCritical: result.isCritical,
+          createdAt: DateTime.now(),
+        ),
+      );
+
+      if (_localParticles.length < 20) {
+        // 1. Spawning decorative banana particles
+        for (int i = 0; i < 3; i++) {
+          _localParticles.add(_LocalDecorationParticle(
+            id: _localParticleCounter++,
+            type: 'banana',
+            x: localOffset.dx,
+            y: localOffset.dy,
+            angle: -rand.nextDouble() * pi,
+            speed: rand.nextDouble() * 3.5 + 2.0,
+            scale: rand.nextDouble() * 0.3 + 0.7,
+          ));
+        }
+
+        // 2. Spawning decorative sparkles
+        for (int i = 0; i < 4; i++) {
+          _localParticles.add(_LocalDecorationParticle(
+            id: _localParticleCounter++,
+            type: 'sparkle',
+            x: localOffset.dx,
+            y: localOffset.dy,
+            angle: -rand.nextDouble() * pi * 1.2 + 0.2,
+            speed: rand.nextDouble() * 4.5 + 2.5,
+            scale: rand.nextDouble() * 0.4 + 0.8,
+          ));
+        }
       }
     });
   }
@@ -203,13 +226,15 @@ class _MonkeyHeroAreaState extends State<MonkeyHeroArea> with TickerProviderStat
                 );
               }).toList(),
 
-              // 4. Floating text indicators driven by GameController
-              ...controller.floatingEffects.map((eff) {
+              // 4. Floating text indicators driven locally
+              ..._localFloatingEffects.map((eff) {
                 return FloatingRewardText(
-                  key: ValueKey('floating_effect_${eff.id}'),
+                  key: ValueKey('local_floating_effect_${eff.id}'),
                   effect: eff,
                   onFinished: () {
-                    controller.removeFloatingEffect(eff.id);
+                    setState(() {
+                      _localFloatingEffects.removeWhere((p) => p.id == eff.id);
+                    });
                   },
                 );
               }).toList(),
@@ -219,15 +244,42 @@ class _MonkeyHeroAreaState extends State<MonkeyHeroArea> with TickerProviderStat
                 left: 20,
                 child: ComboMeter(
                   comboCount: widget.comboCount,
-                  comboProgress: widget.comboProgress,
                 ),
               ),
 
-              // 5b. Golden Banana Event Panel (Right alignment)
+              // 5b. Golden Banana Event Panel (Right alignment, static placeholder/multiplier status)
               const Positioned(
                 right: 20,
                 child: GoldenBananaEvent(),
               ),
+
+              // 5c. Dynamically floating Golden Banana collectible on the canvas
+              if (controller.showGoldenBanana)
+                Positioned(
+                  left: totalWidth * controller.goldenBananaX - 24,
+                  top: totalHeight * controller.goldenBananaY - 24,
+                  child: _FloatingGoldenBananaWidget(
+                    onTap: () {
+                      final result = controller.tapGoldenBanana();
+                      if (result != null) {
+                        final double xOffset = totalWidth * controller.goldenBananaX - 130;
+                        final double yOffset = totalHeight * controller.goldenBananaY - 130;
+                        setState(() {
+                          _localFloatingEffects.add(
+                            FloatingEffect(
+                              id: _localFloatingIdCounter++,
+                              text: result.text,
+                              xOffset: xOffset,
+                              yOffset: yOffset,
+                              isCritical: true,
+                              createdAt: DateTime.now(),
+                            ),
+                          );
+                        });
+                      }
+                    },
+                  ),
+                ),
 
               // 6. Level Up Text Notification
               if (controller.levelUpNotification != null)
@@ -277,6 +329,18 @@ class _MonkeyHeroAreaState extends State<MonkeyHeroArea> with TickerProviderStat
         );
       },
     );
+  }
+
+  String _formatVal(double value) {
+    if (value >= 1000000000) {
+      return '${(value / 1000000000).toStringAsFixed(1)}B';
+    } else if (value >= 1000000) {
+      return '${(value / 1000000).toStringAsFixed(1)}M';
+    } else if (value >= 1000) {
+      return '${(value / 1000).toStringAsFixed(1)}K';
+    } else {
+      return value.toInt().toString();
+    }
   }
 }
 
@@ -375,5 +439,81 @@ class _DecorationParticleWidgetState extends State<_DecorationParticleWidget>
         ),
       );
     }
+  }
+}
+
+class _FloatingGoldenBananaWidget extends StatefulWidget {
+  final VoidCallback onTap;
+
+  const _FloatingGoldenBananaWidget({
+    Key? key,
+    required this.onTap,
+  }) : super(key: key);
+
+  @override
+  State<_FloatingGoldenBananaWidget> createState() => _FloatingGoldenBananaWidgetState();
+}
+
+class _FloatingGoldenBananaWidgetState extends State<_FloatingGoldenBananaWidget>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _scaleAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    )..repeat(reverse: true);
+    
+    _scaleAnimation = Tween<double>(begin: 0.9, end: 1.1).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _scaleAnimation,
+      builder: (context, child) {
+        return Transform.scale(
+          scale: _scaleAnimation.value,
+          child: GestureDetector(
+            onTap: widget.onTap,
+            child: Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: PixelColors.jungleGreen,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: PixelColors.pixelGold, width: 2.5),
+                boxShadow: [
+                  BoxShadow(
+                    color: PixelColors.pixelGold.withOpacity(0.6),
+                    blurRadius: 10,
+                    spreadRadius: 2,
+                  )
+                ],
+              ),
+              padding: const EdgeInsets.all(4.0),
+              child: Image.asset(
+                'assets/images/icons/golden_banana.png',
+                width: 32,
+                height: 32,
+                fit: BoxFit.contain,
+                filterQuality: FilterQuality.none,
+              ),
+            ),
+          ),
+        );
+      },
+    );
   }
 }

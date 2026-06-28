@@ -16,22 +16,21 @@ class UpgradesScreen extends StatefulWidget {
 class _UpgradesScreenState extends State<UpgradesScreen> {
   String _selectedCategory = 'All';
 
+  List<Upgrade> _getSortedFilteredUpgrades(GameController controller) {
+    List<Upgrade> list = List.from(controller.upgrades);
+    if (_selectedCategory.toLowerCase() != 'all') {
+      list = list.where((u) => u.category.toLowerCase() == _selectedCategory.toLowerCase()).toList();
+    }
+    final multiplier = controller.currentMapProgression.worldCostMultiplier;
+    list.sort((a, b) => a.getCost(multiplier).compareTo(b.getCost(multiplier)));
+    return list;
+  }
+
   @override
   Widget build(BuildContext context) {
     final controller = context.watch<GameController>();
     final stats = controller.stats;
-
-    // 1. Filter upgrades by category
-    List<Upgrade> filteredUpgrades = List.from(controller.upgrades);
-    if (_selectedCategory.toLowerCase() != 'all') {
-      filteredUpgrades = filteredUpgrades
-          .where((u) => u.category.toLowerCase() == _selectedCategory.toLowerCase())
-          .toList();
-    }
-
-    // 2. Sort upgrades from cheapest to most expensive (by actual cost)
-    final worldCostMultiplier = controller.currentMapProgression.worldCostMultiplier;
-    filteredUpgrades.sort((a, b) => a.getCost(worldCostMultiplier).compareTo(b.getCost(worldCostMultiplier)));
+    final filteredUpgrades = _getSortedFilteredUpgrades(controller);
 
     return Column(
       children: [
@@ -61,7 +60,8 @@ class _UpgradesScreenState extends State<UpgradesScreen> {
         // Scrollable list of cards
         Expanded(
           child: ListView.builder(
-            padding: const EdgeInsets.only(top: 4.0, bottom: 120.0), // Safe bottom padding so bottom nav doesn't cover cards
+            physics: const BouncingScrollPhysics(),
+            padding: const EdgeInsets.only(top: 4.0, bottom: 120.0),
             itemCount: filteredUpgrades.length,
             itemBuilder: (context, index) {
               final upgrade = filteredUpgrades[index];

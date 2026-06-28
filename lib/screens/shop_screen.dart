@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../controllers/game_controller.dart';
-import '../models/skin.dart';
-import '../models/player_stats.dart';
 import '../widgets/horizontal_skin_card.dart';
 import '../theme/pixel_theme.dart';
 
@@ -18,64 +16,91 @@ class _ShopScreenState extends State<ShopScreen> {
   Widget build(BuildContext context) {
     final controller = context.watch<GameController>();
     final stats = controller.stats;
-    final theme = controller.selectedMapTheme;
 
-    // Filter skins belonging to the currently active map theme
-    final mapSkins = controller.skins.where((s) => s.mapId == theme.id).toList();
+    // Build list of unlocked maps in world order
+    final unlockedProgressions = controller.mapProgressions
+        .where((m) => stats.unlockedMaps.contains(m.id))
+        .toList();
+    unlockedProgressions.sort((a, b) => a.worldIndex.compareTo(b.worldIndex));
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SizedBox(height: 16),
-        // Map Title Header
+        const SizedBox(height: 12),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16.0),
-          child: Row(
-            children: [
-              Text(
-                '📍 ${theme.name.toUpperCase()} SKINS',
-                style: PixelTheme.pixelStyle(
-                  fontSize: 8.5,
-                  color: theme.darkBorderColor,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Container(
-                  height: 2,
-                  color: theme.darkBorderColor.withOpacity(0.2),
-                ),
-              ),
-            ],
+          child: Text(
+            '🏪 MONKEY SKINS SHOP',
+            style: PixelTheme.pixelStyle(
+              fontSize: 9,
+              color: PixelColors.bananaYellow,
+              fontWeight: FontWeight.bold,
+            ),
           ),
         ),
-        const SizedBox(height: 12),
-        
-        // Centered Wrap list of skins
+        const SizedBox(height: 8),
         Expanded(
-          child: Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.only(bottom: 110.0, left: 16.0, right: 16.0, top: 8.0),
-              child: Wrap(
-                alignment: WrapAlignment.center,
-                spacing: 16,
-                runSpacing: 16,
-                children: mapSkins.map((skin) {
-                  return HorizontalSkinCard(
-                    skin: skin,
-                    totalBananas: stats.totalBananas,
-                    onTap: () {
-                      if (skin.isUnlocked) {
-                        if (!skin.isEquipped) controller.equipSkin(skin.id);
-                      } else {
-                        controller.buySkin(skin.id);
-                      }
-                    },
-                  );
-                }).toList(),
-              ),
-            ),
+          child: ListView.builder(
+            physics: const BouncingScrollPhysics(),
+            padding: const EdgeInsets.only(bottom: 110.0, left: 16.0, right: 16.0, top: 4.0),
+            itemCount: unlockedProgressions.length,
+            itemBuilder: (context, worldIndex) {
+              final progression = unlockedProgressions[worldIndex];
+              final worldSkins = controller.skins
+                  .where((s) => s.mapId == progression.id)
+                  .toList();
+
+              if (worldSkins.isEmpty) return const SizedBox.shrink();
+
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // World section header
+                  Padding(
+                    padding: const EdgeInsets.only(top: 16.0, bottom: 8.0),
+                    child: Row(
+                      children: [
+                        Text(
+                          '📍 ${progression.name.toUpperCase()}',
+                          style: PixelTheme.pixelStyle(
+                            fontSize: 8,
+                            color: PixelColors.darkBrown,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Container(
+                            height: 2,
+                            color: PixelColors.darkBrown.withValues(alpha: 0.2),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Skins in this world
+                  Wrap(
+                    alignment: WrapAlignment.start,
+                    spacing: 12,
+                    runSpacing: 12,
+                    children: worldSkins.map((skin) {
+                      return HorizontalSkinCard(
+                        skin: skin,
+                        totalBananas: stats.totalBananas,
+                        onTap: () {
+                          if (skin.isUnlocked) {
+                            if (!skin.isEquipped) controller.equipSkin(skin.id);
+                          } else {
+                            controller.buySkin(skin.id);
+                          }
+                        },
+                      );
+                    }).toList(),
+                  ),
+                ],
+              );
+            },
           ),
         ),
       ],
