@@ -7,9 +7,8 @@ void main() async {
   // 1. Ensure Flutter bindings are initialized
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 2. Initialize GameController and load state
+  // 2. Initialize GameController (Initialization happens in SplashScreen)
   final gameController = GameController();
-  await gameController.initGame();
 
   // 3. Run the App
   runApp(

@@ -9,6 +9,7 @@ import 'widgets/pixel_bottom_nav_bar.dart';
 import 'widgets/offline_reward_dialog.dart';
 import 'models/map_theme.dart';
 
+import 'screens/splash_screen.dart';
 import 'screens/jungle_screen.dart';
 import 'screens/upgrades_screen.dart';
 import 'screens/quests_screen.dart';
@@ -30,7 +31,7 @@ class MyApp extends StatelessWidget {
         primarySwatch: Colors.yellow,
         scaffoldBackgroundColor: Colors.transparent,
       ),
-      home: const BananaClickerApp(),
+      home: const SplashScreen(),
     );
   }
 }
