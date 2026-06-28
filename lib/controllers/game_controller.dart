@@ -215,7 +215,7 @@ class GameController extends ChangeNotifier {
       worldIndex: 2,
       id: 'banana_village',
       name: 'Banana Village',
-      unlockTarget: 100000.0,
+      unlockTarget: 250000.0,
       worldIncomeMultiplier: 4.0,
       worldCostMultiplier: 2.0,
       worldRewardMultiplier: 3.0,
@@ -226,8 +226,8 @@ class GameController extends ChangeNotifier {
       worldIndex: 3,
       id: 'volcano_island',
       name: 'Volcano Island',
-      unlockTarget: 1000000.0,
-      worldIncomeMultiplier: 12.0,
+      unlockTarget: 5000000.0,
+      worldIncomeMultiplier: 8.0,
       worldCostMultiplier: 5.0,
       worldRewardMultiplier: 10.0,
       relicsReward: 50,
@@ -237,8 +237,8 @@ class GameController extends ChangeNotifier {
       worldIndex: 4,
       id: 'ancient_temple',
       name: 'Ancient Temple',
-      unlockTarget: 10000000.0,
-      worldIncomeMultiplier: 35.0,
+      unlockTarget: 150000000.0,
+      worldIncomeMultiplier: 20.0,
       worldCostMultiplier: 12.0,
       worldRewardMultiplier: 30.0,
       relicsReward: 200,
@@ -248,8 +248,8 @@ class GameController extends ChangeNotifier {
       worldIndex: 5,
       id: 'cloud_jungle',
       name: 'Cloud Jungle',
-      unlockTarget: 100000000.0,
-      worldIncomeMultiplier: 100.0,
+      unlockTarget: 5000000000.0,
+      worldIncomeMultiplier: 60.0,
       worldCostMultiplier: 30.0,
       worldRewardMultiplier: 100.0,
       relicsReward: 800,
@@ -259,8 +259,8 @@ class GameController extends ChangeNotifier {
       worldIndex: 6,
       id: 'golden_kingdom',
       name: 'Golden Kingdom',
-      unlockTarget: 1000000000.0,
-      worldIncomeMultiplier: 300.0,
+      unlockTarget: 250000000000.0,
+      worldIncomeMultiplier: 150.0,
       worldCostMultiplier: 80.0,
       worldRewardMultiplier: 500.0,
       relicsReward: 4000,
@@ -1711,13 +1711,13 @@ class GameController extends ChangeNotifier {
   void _addXp(double amount) {
     double currentXp = _stats.xp + amount;
     int currentLevel = _stats.level;
-    double needed = 100.0 * pow(1.5, currentLevel - 1);
+    double needed = 100.0 * pow(1.8, currentLevel - 1);
 
     bool leveledUp = false;
     while (currentXp >= needed) {
       currentXp -= needed;
       currentLevel++;
-      needed = 100.0 * pow(1.5, currentLevel - 1);
+      needed = 100.0 * pow(1.8, currentLevel - 1);
       leveledUp = true;
     }
 
@@ -1840,7 +1840,7 @@ class GameController extends ChangeNotifier {
 
     if (choice == 0) {
       // Instant reward
-      final baseReward = (100.0 * bpc).clamp(500.0, double.infinity);
+      final baseReward = (40.0 * bpc).clamp(500.0, double.infinity);
       double metaGoldenMult =
           1.0 + (_stats.metaGoldenLevel * 0.15); // Shiny Totem
 

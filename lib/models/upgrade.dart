@@ -1,3 +1,5 @@
+import 'dart:math';
+
 class Upgrade {
   final String id;
   final String name;
@@ -33,7 +35,7 @@ class Upgrade {
 
   double getCost(double worldCostMultiplier) {
     if (isRepeatable) {
-      return (fixedCost * (1 + currentLevel * 0.12) * worldCostMultiplier).floorToDouble();
+      return (fixedCost * pow(1.15, currentLevel) * worldCostMultiplier).floorToDouble();
     }
     return (fixedCost * worldCostMultiplier).floorToDouble();
   }
